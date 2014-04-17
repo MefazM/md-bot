@@ -1,5 +1,8 @@
 #!/usr/bin/env ruby
 require 'optparse'
+require 'login_data'
+require 'client'
+
 
 options = {}
 OptionParser.new do |opts|
@@ -22,18 +25,8 @@ OptionParser.new do |opts|
 
 end.parse!
 
-require 'login_data'
 auth_data = LoginData.instance.auth_data
-
-require 'client'
-auth_data.each {|auth|
-
-  Monkey.new(auth).async.run!
-
-  # client = Monkey.new(auth).async.run
-  # client.async.run
-  # client.async.login
-  # client.async.start
-}
-
+print "Connectings..."
+auth_data.each {|auth| Monkey.new(auth).async.run! }
+print "Ready!\n"
 sleep

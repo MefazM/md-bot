@@ -7,6 +7,8 @@ require 'json'
 
 require 'pry'
 
+Celluloid.logger = nil
+
 class Monkey
   include Celluloid
   include Celluloid::IO
@@ -22,9 +24,9 @@ class Monkey
 
   UNITS_PRODUCE_BUILDINGS = [:bow_barrack, :mage_barrack, :barrack]
 
-  STATES = [:produce_units, :update_buildings, :war]
+  STATES = [:produce_units, :update_buildings, :war, :produce_units]
 
-  def initialize auth_data, host = '0.0.0.0', port = 3005
+  def initialize auth_data, host = '94.23.109.49', port = 3005
 
     write_log 'Initialize monkey...'
 
@@ -35,14 +37,17 @@ class Monkey
     @socket = TCPSocket.new(host, port)
     @states = []
     @current_state = nil
+
+
+    @socket_listener =  Networking::Request.new @socket
   end
 
   def run!
     write_log 'Run...'
 
     async.listen
+    sleep 3
     async.login
-    async.start
   end
 
   private
@@ -56,7 +61,9 @@ class Monkey
       fill_states if @states.empty?
       @current_state = @states.pop
 
-      send @current_state
+      write_log "Do state: #{@current_state}"
+
+      send @current_state unless @current_state.nil?
     }
   end
 
@@ -89,7 +96,8 @@ class Monkey
 
   # Dumshit at the bottom
   def listen
-    Networking::Request.listen_socket(@socket) do |action, data|
+
+    @socket_listener.listen_socket do |action, data|
       case action
       when RECEIVE_GAME_DATA_ACTION
 
@@ -101,6 +109,8 @@ class Monkey
         @units = payload[:player_data][:units]
         @buildings_production = payload[:game_data][:buildings_production]
         @buildings_info = payload[:game_data][:buildings_data]
+
+        async.start
 
       when RECEIVE_SYNC_BUILDING_STATE_ACTION
 
@@ -120,6 +130,7 @@ class Monkey
         @update_timer.reset if @current_state == :war
 
       when RECEIVE_CUSTOM_EVENT
+
         payload = data[1]
         @update_timer.reset if @current_state == :war && payload[2] == :inviteCanceledNotification
 
@@ -140,7 +151,7 @@ class Monkey
 
       when RECEIVE_INVITE_TO_BATTLE_ACTION
 
-        response_invitation(data[1], [true, false].sample)
+        response_invitation(data[1], true)
       end
 
       false

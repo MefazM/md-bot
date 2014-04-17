@@ -86,23 +86,76 @@ module Networking
 
   class Request
 
-    def self.listen_socket(socket)
-      raise "Socket is dead!" if socket.nil?
+    def initialize socket
+      @socket = socket
+
+      @buffer = ''
+      @multipart_package = false
+    end
+
+    def parse_data data_str
+      str_start = data_str.index(MESSAGE_START_TOKEN)
+      str_end = data_str.index(MESSAGE_END_TOKEN)
+
+      if str_start and str_end
+        return data_str
+      end
+
+      # no start
+      # no end
+      # no start and end
+      if @multipart_package
+        @buffer += data_str
+
+        if str_end
+          @multipart_package = false
+          return @buffer
+        end
+      end
+
+      if str_start and not str_end
+        @multipart_package = true
+        @buffer = data_str
+      end
+
+      nil
+    end
+
+    def listen_socket
+      raise "Socket is dead!" if @socket.nil?
       raise "No block given!" unless block_given?
 
+
       begin
-        data_str = socket.read
+        data_str = @socket.read
 
-        str_start = data_str.index(MESSAGE_START_TOKEN)
-        str_end = data_str.index(MESSAGE_END_TOKEN)
+
+        data_buffer = parse_data data_str
+
         data = nil
+        action = nil
 
-        if str_start and str_end
-          json = data_str[ str_start + TOKEN_START_LENGTH .. str_end - 1 ]
+        if data_buffer
 
+          str_start = data_buffer.index(MESSAGE_START_TOKEN)
+          str_end = data_buffer.index(MESSAGE_END_TOKEN)
 
+          json = data_buffer[ str_start + TOKEN_START_LENGTH .. str_end - 1 ]
 
-          action, *data = JSON.parse(json, :symbolize_names => true)
+          begin
+            action, *data = JSON.parse(json, :symbolize_names => true)
+
+          rescue Exception => e
+
+            Celluloid::Logger::debug "-=-=-=-=-=-=-=-=-=-=-=-"
+            Celluloid::Logger::debug json.inspect
+            Celluloid::Logger::debug e
+            Celluloid::Logger::debug "-=-=-=-=-=-=-=-=-=-=-=-"
+
+          end
+
+          next if action.nil?
+
         end
 
       end until yield( action, data )
