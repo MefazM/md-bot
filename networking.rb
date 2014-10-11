@@ -38,14 +38,13 @@ module Networking
 
   module SendData
     def login
-      write_log "Login..."
       login_data = {
         :token => @token,
         :name => @username,
         :email => @email,
         :provider => 'facebook'
       }
-      write_data [Networking::Actions::SEND_REQUEST_PLAYER_ACTION, login_data]
+      write_data ['login', login_data]
     end
 
     def response_invitation(battle_uid, decision)
@@ -61,12 +60,10 @@ module Networking
     end
 
     def update_building uid
-      write_log "Update building= #{uid}"
       write_data [Networking::Actions::SEND_BUILDING_PRODUCTION_TASK_ACTION, uid]
     end
 
     def produce_unit uid
-      write_log "Produce unit= #{uid}"
       write_data [Networking::Actions::SEND_UNIT_PRODUCTION_TASK_ACTION, uid]
     end
 
@@ -93,74 +90,76 @@ module Networking
       @multipart_package = false
     end
 
-    def parse_data data_str
-      str_start = data_str.index(MESSAGE_START_TOKEN)
-      str_end = data_str.index(MESSAGE_END_TOKEN)
+    # def parse_data data_str
+    #   str_start = data_str.index(MESSAGE_START_TOKEN)
+    #   str_end = data_str.index(MESSAGE_END_TOKEN)
 
-      if str_start and str_end
-        return data_str
-      end
+    #   if str_start and str_end
+    #     return data_str
+    #   end
 
-      # no start
-      # no end
-      # no start and end
-      if @multipart_package
-        @buffer += data_str
+    #   if @multipart_package
+    #     @buffer += data_str
 
-        if str_end
-          @multipart_package = false
-          return @buffer
-        end
-      end
+    #     if str_end
+    #       @multipart_package = false
+    #       return @buffer
+    #     end
+    #   end
 
-      if str_start and not str_end
-        @multipart_package = true
-        @buffer = data_str
-      end
+    #   if str_start and not str_end
+    #     @multipart_package = true
+    #     @buffer = data_str
+    #   end
 
-      nil
-    end
+    #   nil
+    # end
 
     def listen_socket
       raise "Socket is dead!" if @socket.nil?
       raise "No block given!" unless block_given?
 
+      loop {
+        data = @socket.read
+        @buffer += data
 
-      begin
-        data_str = @socket.read
+        loop {
+          str_start = @buffer.index MESSAGE_START_TOKEN
+          str_end = @buffer.index MESSAGE_END_TOKEN
+          if str_start and str_end
 
+            message = @buffer.slice!(str_start .. str_end + 12)
+            json = message.slice(str_start + 15 .. str_end - 1)
 
-        data_buffer = parse_data data_str
+            action, *payload = JSON.parse( json, :symbolize_names => true)
 
-        data = nil
-        action = nil
-
-        if data_buffer
-
-          str_start = data_buffer.index(MESSAGE_START_TOKEN)
-          str_end = data_buffer.index(MESSAGE_END_TOKEN)
-
-          json = data_buffer[ str_start + TOKEN_START_LENGTH .. str_end - 1 ]
-
-          begin
-            action, *data = JSON.parse(json, :symbolize_names => true)
-
-          rescue Exception => e
-
-            Celluloid::Logger::debug "-=-=-=-=-=-=-=-=-=-=-=-"
-            Celluloid::Logger::debug json.inspect
-            Celluloid::Logger::debug e
-            Celluloid::Logger::debug "-=-=-=-=-=-=-=-=-=-=-=-"
-
+            yield( action, payload )
+          else
+            break
           end
+        }
 
-          next if action.nil?
+        # end until
 
-        end
+        # if data_buffer
 
-      end until yield( action, data )
+        #   str_start = data_buffer.index(MESSAGE_START_TOKEN)
+        #   str_end = data_buffer.index(MESSAGE_END_TOKEN)
+
+        #   json = data_buffer[ str_start + TOKEN_START_LENGTH .. str_end - 1 ]
+
+        #   begin
+        #     action, *data = JSON.parse(json, :symbolize_names => true)
+
+        #   rescue Exception => e
+        #     Celluloid::Logger::debug e
+        #     Celluloid::Logger::debug json.inspect
+        #   end
+
+        #   next if action.nil?
+        # end
+      }
 
     end
-
   end
 end

@@ -1,3 +1,4 @@
+require 'securerandom'
 require 'singleton'
 require 'yaml'
 
@@ -12,12 +13,12 @@ class LoginData
     File.delete @auth_data_file_path
   end
 
-  def generate_auth_data n
+  def generate_auth_data number
     Celluloid::Logger::info "Generating bot auth data"
-    n.times do
+    number.times do
       @auth_data << generate_player
     end
-    Celluloid::Logger::info "#{n} new tokens generated"
+    Celluloid::Logger::info "#{number} new tokens generated"
 
     save_auth
   end
@@ -70,6 +71,6 @@ class LoginData
   end
 
   def generate_auth_token
-    rand.to_s[2..20]
+    SecureRandom.hex(10)
   end
 end
