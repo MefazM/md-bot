@@ -24,25 +24,31 @@ class Monkey
   end
 
   def run!
+    request_game_data
 
-    login
+    async.listen
+  end
 
+  def listen
     @requests.listen_socket do |action, data|
       case action
       when 'authorised'
-        puts "AUTHORISED: #{data.inspect}"
-
-
         @uid = data[0][:uid]
+        info "UID: #{@uid}| AUTHORISED!"
 
         write_data ['ping', { :counter => @counter }]
+
+      when 'game_data'
+        info "GAMEDATA RECIEVED!"
+        @game_data = data[0]
+
+        login
 
       when 'pong'
 
         r_counter = data[0][:counter] + 1
 
         @counter += 2
-puts( "#{r_counter} || #{@counter}")
         if r_counter != @counter
           puts( "#{r_counter} != #{@counter}")
         end

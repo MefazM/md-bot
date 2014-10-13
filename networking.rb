@@ -47,6 +47,10 @@ module Networking
       write_data ['login', login_data]
     end
 
+    def request_game_data
+      write_data ['request_game_data']
+    end
+
     def response_invitation(battle_uid, decision)
       write_data [Networking::Actions::SEND_RESPONSE_BATTLE_ACTION, battle_uid, decision]
     end
