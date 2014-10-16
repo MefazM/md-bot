@@ -1,3 +1,5 @@
+require 'actions_headers'
+
 require 'celluloid'
 require 'celluloid/io'
 require 'networking'
@@ -9,7 +11,7 @@ class Monkey
   include Celluloid::IO
   include Celluloid::Logger
 
-  include Networking::Actions
+
   include Networking::SendData
 
   def initialize auth_data, host = '0.0.0.0', port = 27014
@@ -31,20 +33,20 @@ class Monkey
 
   def listen
     @requests.listen_socket do |action, data|
-      case action
-      when 'authorised'
-        @uid = data[0][:uid]
-        info "UID: #{@uid}| AUTHORISED!"
+      case action.to_sym
+      when ::Receive::AUTHORISED
+
+        info "AUTHORISED!"
 
         write_data ['ping', { :counter => @counter }]
 
-      when 'game_data'
+      when ::Receive::GAME_DATA
         info "GAMEDATA RECIEVED!"
         @game_data = data[0]
 
         login
 
-      when 'pong'
+      when ::Receive::PONG
 
         r_counter = data[0][:counter] + 1
 
@@ -54,6 +56,9 @@ class Monkey
         end
 
         write_data ['ping', { :counter => @counter }]
+
+      else
+        error "Unknow request: #{action}"
       end
     end
   end
