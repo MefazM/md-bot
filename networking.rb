@@ -6,7 +6,7 @@ module Networking
   TOKEN_START_LENGTH = MESSAGE_START_TOKEN.length
 
   module SendData
-    def login
+    def request_login
       login_data = {
         :token => @token,
         :name => @username,
@@ -20,8 +20,8 @@ module Networking
       write_data [::Send::GAME_DATA]
     end
 
-    def ping
-      write_data [::Send::PING]
+    def request_ping(data)
+      write_data [::Send::PING, data]
     end
 
     def write_data data

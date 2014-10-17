@@ -10,9 +10,9 @@ class Monkey
   include Celluloid
   include Celluloid::IO
   include Celluloid::Logger
-
-
   include Networking::SendData
+
+  BENCH_PACKEGES_COUNT = 500
 
   def initialize auth_data, host = '0.0.0.0', port = 27014
     info 'Initialize monkey...'
@@ -23,6 +23,9 @@ class Monkey
     @requests =  Networking::Request.new @socket
 
     @counter = 0
+
+    @latency_samples = []
+    @packeges_count = 0
   end
 
   def run!
@@ -33,29 +36,44 @@ class Monkey
 
   def listen
     @requests.listen_socket do |action, data|
+
+      @packeges_count += 1
+
       case action.to_sym
       when ::Receive::AUTHORISED
 
         info "AUTHORISED!"
 
-        write_data ['ping', { :counter => @counter }]
+        @bench_start_time = Time.now.to_f
+
+        request_ping({ counter: @counter, time: @bench_start_time })
 
       when ::Receive::GAME_DATA
         info "GAMEDATA RECIEVED!"
         @game_data = data[0]
 
-        login
+        request_login
 
       when ::Receive::PONG
 
-        r_counter = data[0][:counter] + 1
+        time = Time.now.to_f
 
-        @counter += 2
-        if r_counter != @counter
-          puts( "#{r_counter} != #{@counter}")
+        received_counter = data[0][:counter]
+        @latency_samples << time - data[0][:time]
+
+        @counter += 1
+        if received_counter != @counter
+          puts("#{received_counter} != #{@counter}")
         end
 
-        write_data ['ping', { :counter => @counter }]
+        if @counter > BENCH_PACKEGES_COUNT
+          bench_time = Time.now.to_f - @bench_start_time
+          avg_lat = @latency_samples.inject(:+) / @latency_samples.length
+          puts("#{BENCH_PACKEGES_COUNT} pings processed in #{bench_time} seconds. Total: #{@packeges_count}. AVG latency: #{avg_lat}. MAX: #{@latency_samples.max}. MIN: #{@latency_samples.min}")
+        else
+          request_ping({ counter: @counter, :time => Time.now.to_f })
+        end
+
 
       else
         error "Unknow request: #{action}"
