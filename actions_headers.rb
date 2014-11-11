@@ -13,14 +13,24 @@ module Send
   CAST_SPELL = :cs
   RESPONSE_BATTLE_INVITE = :rbi
   PING = :pg
-  BUILDING_PRODUCTION_TASK = :bpt
 
-  CURRENT_MINE = :cm
-  RELOAD_GAME_DATA = :rgb
+  CONSTUCT_BUILDING = :cb
+  CONSTUCT_UNIT = :cu
 end
 #RESPONSE
 module Receive
   AUTHORISED = :ad
   GAME_DATA = :gd
   PONG = :png
+  GOLD_STORAGE_CAPACITY = :gsc
+  NOTIFICATION = :ntct
+
+  BUILDING_SYNC = :bsc
+
+  SCORE_SYNC = :scs
+  MANA_SYNC = :mns
+
+  START_GAME_SCENE = :sgs
+
+  SYNC_UNITS = :su
 end

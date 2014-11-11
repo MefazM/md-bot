@@ -20,6 +20,10 @@ module Networking
       write_data [::Send::GAME_DATA]
     end
 
+    def request_harvest
+      write_data [::Send::HARVESTING]
+    end
+
     def request_ping(data)
       write_data [::Send::PING, data]
     end
@@ -43,11 +47,11 @@ module Networking
       raise "Socket is dead!" if @socket.nil?
       raise "No block given!" unless block_given?
 
-      loop {
+      loop do
         data = @socket.read
         @buffer += data
 
-        loop {
+        loop do
           str_start = @buffer.index MESSAGE_START_TOKEN
           str_end = @buffer.index MESSAGE_END_TOKEN
           if str_start and str_end
@@ -61,8 +65,11 @@ module Networking
           else
             break
           end
-        }
-      }
+
+        end
+
+      end
     end
+
   end
 end

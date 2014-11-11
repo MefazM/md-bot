@@ -1,14 +1,16 @@
 GEM
   remote: https://rubygems.org/
   specs:
-    celluloid (0.15.2)
-      timers (~> 1.1.0)
+    celluloid (0.16.0)
+      timers (~> 4.0.0)
     celluloid-io (0.15.0)
       celluloid (>= 0.15.0)
       nio4r (>= 0.5.0)
     coderay (1.1.0)
     connection_pool (2.0.0)
     ffi (1.9.3-java)
+    hitimes (1.2.2)
+    hitimes (1.2.2-java)
     instrumental_agent (0.12.5)
     method_source (0.8.2)
     nio4r (1.0.0)
@@ -25,7 +27,8 @@ GEM
     slop (3.5.0)
     spoon (0.0.4)
       ffi
-    timers (1.1.0)
+    timers (4.0.1)
+      hitimes
 
 PLATFORMS
   java
