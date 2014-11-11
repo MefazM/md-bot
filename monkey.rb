@@ -31,9 +31,11 @@ class Monkey
     su: :sync_units,
   }
 
-  def authorised(data)
-    request_harvest
-    @buildings = data[:buildings]
+  def make_hardcore!
+
+    @g += 1
+
+    return if @g < 3
 
     loop do
 
@@ -43,12 +45,23 @@ class Monkey
     end
   end
 
+  def authorised(data)
+    request_harvest
+    @buildings = data[:buildings]
+
+    make_hardcore!
+  end
+
   def game_data(data)
     @game_data = data
+
+    make_hardcore!
   end
 
   def gold_storage_capacity(data)
     @coins = data
+
+    make_hardcore!
   end
 
   def building_sync(data)
@@ -71,6 +84,9 @@ class Monkey
 
     @latency_samples = []
     @packeges_count = 0
+
+
+    @g = 0
   end
 
   def do_some_actions
