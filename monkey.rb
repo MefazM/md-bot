@@ -34,7 +34,13 @@ class Monkey
   def authorised(data)
     request_harvest
     @buildings = data[:buildings]
-    after(3){ do_some_actions }
+
+    loop do
+
+      sleep(rand(2..7))
+
+      do_some_actions
+    end
   end
 
   def game_data(data)
@@ -52,7 +58,8 @@ class Monkey
       binding.pry
   end
 
-  def initialize(auth_data, host = '0.0.0.0', port = 27014)
+  # def initialize(auth_data, host = '0.0.0.0', port = 27014) , 27014
+  def initialize(auth_data, host = 'zoe-games.com', port = 27014)
     info 'Initialize monkey...'
     @token = auth_data[:token]
     @username = auth_data[:username]
@@ -75,12 +82,12 @@ class Monkey
 
       construct_building
 
+      info 'Try to construct building....'
+
     when :construct_unit
       # info 'Try to construct unit'
 
     end
-
-    after(rand(1..4)){ do_some_actions }
   end
 
   def run!
