@@ -3,11 +3,14 @@ module BuildingsProductionTask
   BUILDINGS = [:mage_barrack, :barrack, :gold_mine, :gold_storage, :bow_barrack, :stables]
 
   def building_to_construct
-    uid = BUILDINGS.sample
-    return uid if @buildings[uid].nil?
 
-    begin
-      
+    uid = if @buildings.key?(:barrack)
+      BUILDINGS.sample
+    else
+      :barrack
+    end
+
+    return uid if @buildings[uid].nil?
 
     if @buildings[uid][:ready] && @buildings[uid][:level] <= 5
       gd_uid = [uid.to_s, @buildings[uid][:level] || 1].join('_').to_sym
@@ -19,11 +22,6 @@ module BuildingsProductionTask
       end
     end
 
-    rescue Exception => e
-      binding.pry
-    end
-
-
     nil
   end
 
@@ -32,7 +30,9 @@ module BuildingsProductionTask
 
     unless uid.nil?
       # info "Try to construct building #{uid}..."
-      write_data([Send::CONSTUCT_BUILDING, uid])
+      request_constuct_building(uid)
+
+      $stdout.print(',')
     end
   end
 end

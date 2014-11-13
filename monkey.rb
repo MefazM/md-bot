@@ -1,22 +1,18 @@
-require 'actions_headers'
-require 'celluloid'
-require 'celluloid/io'
 
-require 'networking'
 require 'json'
 require 'pry'
-
+require 'socket'
 require 'buildings_production_task'
+require 'units_production_task'
+require 'networking'
 
-class Monkey
-  include Celluloid
-  include Celluloid::IO
-  include Celluloid::Logger
-  include Networking::SendData
+MESSAGE_START_TOKEN = '__JSON__START__'
+MESSAGE_END_TOKEN = '__JSON__END__'
 
+class Monkey < TCPSocket
   include BuildingsProductionTask
-
-  BENCH_PACKEGES_COUNT = 500
+  include UnitsProductionTask
+  include Networking::SendData
 
   RECEIVED_MAP = {
     ad: :authorised,
@@ -31,95 +27,105 @@ class Monkey
     su: :sync_units,
   }
 
-  def make_hardcore!
+  def initialize(*args)
+    super(*args)
 
-    @g += 1
+    @buffer = ''
 
-    return if @g < 3
+    @ready = false
+    @next_active_time = Time.now.to_i
+  end
 
-    loop do
+  def do_some_actions
+    return unless @ready
 
-      sleep(rand(2..7))
+    if @next_active_time < Time.now.to_i
 
-      do_some_actions
+      request_harvest
+
+      case [:construct_building, :construct_unit].sample
+      when :construct_building
+
+        construct_building
+
+      when :construct_unit
+
+        rand(1..7).times do
+          construct_unit
+        end
+
+      end
+
+
+      enqueue(rand(3..5))
     end
+  end
+
+  def login(login_data)
+    request_login(login_data)
+  end
+
+  def start_game_scene(data)
+    @ready = true
+    enqueue(rand(3..5))
+  end
+
+  def enqueue(offset)
+    @next_active_time = Time.now.to_i + offset
   end
 
   def authorised(data)
     request_harvest
     @buildings = data[:buildings]
-
-    make_hardcore!
   end
 
   def game_data(data)
     @game_data = data
-
-    make_hardcore!
   end
 
   def gold_storage_capacity(data)
     @coins = data
-
-    make_hardcore!
   end
 
   def building_sync(data)
     @buildings[data[:uid].to_sym] = data
-
-    rescue Exception => e
-      binding.pry
   end
 
-  # def initialize(auth_data, host = '0.0.0.0', port = 27014) , 27014
-  def initialize(auth_data, host = 'zoe-games.com', port = 27014)
-    info 'Initialize monkey...'
-    @token = auth_data[:token]
-    @username = auth_data[:username]
-    @email = auth_data[:email]
-    @socket = TCPSocket.new(host, port)
-    @requests =  Networking::Request.new @socket
-
-    @counter = 0
-
-    @latency_samples = []
-    @packeges_count = 0
-
-
-    @g = 0
-  end
-
-  def do_some_actions
-    # info('Do some actions.....')
-    request_harvest
-
-    case [:construct_building, :construct_unit].sample
-    when :construct_building
-
-      construct_building
-
-      info 'Try to construct building....'
-
-    when :construct_unit
-      # info 'Try to construct unit'
-
+  def perform(action, data)
+    handler = RECEIVED_MAP[action.to_sym]
+    if handler && respond_to?(handler)
+      method(handler).call(data[0])
+    else
+      # error("Handler for: #{action} not found.")
     end
   end
 
-  def run!
-    request_login
+  def receive_data
+    buffer = recv_nonblock(1024)
 
-    async.listen
-  end
+    @buffer += buffer
 
-  def listen
-    @requests.listen_socket do |action, data|
-      handler = RECEIVED_MAP[action.to_sym]
-      if handler && respond_to?(handler)
-        method(handler).call(data[0])
-      else
-        # error("Handler for: #{action} not found.")
+    if buffer.length == 0
+      return
+    else
+
+      loop do
+        str_start = @buffer.index(MESSAGE_START_TOKEN)
+        str_end = @buffer.index(MESSAGE_END_TOKEN)
+        if str_start and str_end
+
+          message = @buffer.slice!(str_start .. str_end + 12)
+          json = message.slice(str_start + 15 .. str_end - 1)
+
+          action, *payload = JSON.parse( json, :symbolize_names => true)
+
+          perform( action, payload )
+        else
+          break
+        end
+
       end
+
     end
   end
 

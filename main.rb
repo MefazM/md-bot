@@ -4,7 +4,6 @@ require 'optparse'
 require 'login_data'
 require 'monkey'
 
-
 options = {}
 OptionParser.new do |opts|
   opts.banner = "Magic Towers bot usage: [options]"
@@ -26,7 +25,50 @@ OptionParser.new do |opts|
 
 end.parse!
 
-auth_data = LoginData.instance.auth_data
-auth_data.each {|auth| Monkey.new(auth).async.run! }
+require 'logger'
+
+logger = Logger.new(STDOUT)
+
+THREADS_COUNT = 5
+
+authentications = LoginData.instance.auth_data
+auth_count = authentications.length
+batch_size = auth_count / THREADS_COUNT
+
+logger.info('Start...')
+logger.info("batch_size = #{batch_size}")
+
+authentications.each_slice(batch_size) do |batch|
+
+  Thread.new do
+    monkeys = []
+
+    Thread.new do
+      batch.each do |auth|
+        # zbot = Monkey.new('0.0.0.0', 27015)
+        zbot = Monkey.new('zoe-games.com', 27015)
+        zbot.login(auth)
+
+        monkeys << zbot
+      end
+
+      while true
+        ready = IO.select(monkeys)
+        readable = ready[0]
+        readable.each do |socket|
+          socket.receive_data
+        end
+
+      end
+
+    end
+
+    loop do
+      monkeys.each {|monkey| monkey.do_some_actions unless monkey.nil? }
+    end
+
+  end
+end
+
 
 sleep
