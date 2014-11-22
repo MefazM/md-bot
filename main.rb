@@ -1,8 +1,17 @@
 #!/usr/bin/env ruby
-
+require 'pry'
 require 'optparse'
 require 'login_data'
 require 'monkey'
+
+HOST = '0.0.0.0'
+PORT = 3000
+# HOST = 'zoe-games.com'
+# PORT = 27015
+
+THREADS_COUNT = 5
+
+Thread.abort_on_exception = true
 
 options = {}
 OptionParser.new do |opts|
@@ -29,14 +38,12 @@ require 'logger'
 
 logger = Logger.new(STDOUT)
 
-THREADS_COUNT = 5
-
 authentications = LoginData.instance.auth_data
 auth_count = authentications.length
 batch_size = auth_count / THREADS_COUNT
 
-logger.info('Start...')
-logger.info("batch_size = #{batch_size}")
+logger.info("*** Start MagicBot. Connect to: #{HOST}:#{PORT}. ***")
+logger.info("Authentications: #{authentications.size}. Threads: #{THREADS_COUNT}, batch size: #{batch_size}")
 
 authentications.each_slice(batch_size) do |batch|
 
@@ -45,23 +52,20 @@ authentications.each_slice(batch_size) do |batch|
 
     Thread.new do
       batch.each do |auth|
-        # zbot = Monkey.new('0.0.0.0', 27015)
-        zbot = Monkey.new('zoe-games.com', 27015)
+        zbot = Monkey.new(HOST, PORT)
         zbot.login(auth)
 
         monkeys << zbot
       end
 
-      while true
+      loop do
         ready = IO.select(monkeys)
-        readable = ready[0]
-        readable.each do |socket|
-          socket.receive_data
-        end
-
+        ready[0].each {|s| s.receive_data}
       end
 
     end
+
+    logger.info("#{batch.size} bots connected!")
 
     loop do
       monkeys.each {|monkey| monkey.do_some_actions unless monkey.nil? }
@@ -69,6 +73,5 @@ authentications.each_slice(batch_size) do |batch|
 
   end
 end
-
 
 sleep

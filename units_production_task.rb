@@ -12,9 +12,6 @@ module UnitsProductionTask
 
     end
 
-
-
-
     nil
 
     rescue Exception => e

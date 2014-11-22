@@ -1,13 +1,13 @@
-
-require 'json'
-require 'pry'
 require 'socket'
+require 'msgpack'
+
 require 'buildings_production_task'
 require 'units_production_task'
+
 require 'networking'
 
-MESSAGE_START_TOKEN = '__JSON__START__'
-MESSAGE_END_TOKEN = '__JSON__END__'
+MESSAGE_START_TOKEN = '__SMSG__'
+MESSAGE_END_TOKEN = '__EMSG__'
 
 class Monkey < TCPSocket
   include BuildingsProductionTask
@@ -50,14 +50,11 @@ class Monkey < TCPSocket
 
       when :construct_unit
 
-        rand(1..7).times do
-          construct_unit
-        end
+        rand(1..7).times{ construct_unit }
 
       end
 
-
-      enqueue(rand(3..5))
+      enqueue(rand(3..6))
     end
   end
 
@@ -91,35 +88,35 @@ class Monkey < TCPSocket
     @buildings[data[:uid].to_sym] = data
   end
 
-  def perform(action, data)
-    handler = RECEIVED_MAP[action.to_sym]
-    if handler && respond_to?(handler)
-      method(handler).call(data[0])
-    else
-      # error("Handler for: #{action} not found.")
-    end
+  def write_data(data)
+    write ['__SMSG__', MessagePack.pack(data), '__EMSG__'].join
   end
 
   def receive_data
     buffer = recv_nonblock(1024)
 
-    @buffer += buffer
-
     if buffer.length == 0
       return
     else
+
+      @buffer += buffer
 
       loop do
         str_start = @buffer.index(MESSAGE_START_TOKEN)
         str_end = @buffer.index(MESSAGE_END_TOKEN)
         if str_start and str_end
+          str = @buffer.slice!(str_start .. str_end + 7)
+          msg = str.slice(str_start + 8 .. str_end - 1)
 
-          message = @buffer.slice!(str_start .. str_end + 12)
-          json = message.slice(str_start + 15 .. str_end - 1)
+          action, *payload = MessagePack.unpack( msg, :symbolize_keys => true)
+          handler = RECEIVED_MAP[action.to_sym]
 
-          action, *payload = JSON.parse( json, :symbolize_names => true)
+          if handler && respond_to?(handler)
+            method(handler).call(payload[0])
+          else
+            # error("Handler for: #{action} not found.")
+          end
 
-          perform( action, payload )
         else
           break
         end
